@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>Calculator</title>
+	</head>
+	<body>
+		<form action="info.php" method="POST">
+			<p>
+				<label for="firstnumberinput">First Number:</label>
+				<input type="text" name="firstnumber" id="firstnumberinput" />
+			</p>
+			<p>
+				<strong>Operation:</strong>
+				<input type="radio" name="operation" value="addition" id="additioninput" />
+				<label for="additioninput">+</label> &nbsp;
+			
+				<input type="radio" name="operation" value="subtraction" id="subtractioninput" />
+				<label for="subtractioninput">-</label> &nbsp;
+			
+				<input type="radio" name="operation" value="multiplication" id="multiplicationinput" />
+				<label for="multiplicationinput">*</label> &nbsp;
+			
+				<input type="radio" name="operation" value="division" id="divisioninput" />
+				<label for="divisioninput">/</label> &nbsp;
+		
+			</p>
+			<p>
+				<label for="secondnumberinput">Second Number:</label>
+				<input type="text" name="secondnumber" id="secondnumberinput" />
+			</p>
+			<p>
+				<input type="submit" value="Send" />
+				<input type="reset" />
+			</p>
+		</form>
+	</body>
+</html>

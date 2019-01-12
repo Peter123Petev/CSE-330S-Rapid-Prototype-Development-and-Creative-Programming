@@ -1,0 +1,15 @@
+mysql> select
+    -> grades.student_id,
+    -> students.email_address,
+    -> avg(grades.grade) as avg_grade
+    -> from grades
+    -> join students on (grades.student_id=students.id)
+    -> where students.first_name like 'Jack' and students.last_name like 'Johnson'
+    -> group by student_id
+    -> ;
++------------+------------------------------+-----------+
+| student_id | email_address                | avg_grade |
++------------+------------------------------+-----------+
+|        257 | jjmuzak@brushfirerecords.com | 96.125000 |
++------------+------------------------------+-----------+
+1 row in set (0.00 sec)

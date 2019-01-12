@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Mod6 Chat</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+        <script src="/socket.io/socket.io.js"></script>
+        <script type ="text/javascript">
+
+        var user = null;
+        var current_chat = null;
+        var id = null;
+
+        var bans = [];
+
+        var socketio = io.connect();
+        // assign ids on creation
+        socketio.on("assign_ids",function(data) {
+            console.log(data['id']);
+            if(id === null){
+                id = data['id'];
+                document.getElementById("client_id").innerHTML = "Client ID: " + id;
+            }
+        });
+
+        // creates new user if server allows
+        socketio.on("new_user_success",function(data) {
+            if(data['id'] === id){
+                if(data['success']){
+                    user = document.getElementById("new_user").value;
+                    document.getElementById("userjoin").innerHTML = "";
+                    document.getElementById("page").style.display = "block";
+                    update();
+                }else{
+                    document.getElementById("userjoinmsg").innerHTML = "<p style=\"color: red;\">Username already taken.</p>";
+                }
+            }
+        });
+
+        // creates new chat if server allows
+        socketio.on("new_chat_success",function(data) {
+            if(data['id'] === id){
+                if(data['success']){
+                    document.getElementById("current_chat_name").innerHTML = "Current Chat: " + data['new_chat_name'];
+                    // console.log("You created a chat called " + data['new_chat_name']);
+                    current_chat = data['new_chat_name'];
+                    notifyUser("You created a new chat: " + data['new_chat_name']);
+                    update();
+                }else{
+                    notifyUser("The chat name " + data['new_chat_name'] + " is already taken");
+                }
+            }
+        });
+
+        // changes rooms if server allows
+        socketio.on("room_changed",function(data) {
+            if(data['id'] === id){
+                if(data['success']){
+                    document.getElementById("current_chat_name").innerHTML = "Current Chat: " + data['new_chat_name'];
+                    console.log("You joined a chat called " + data['new_chat_name']);
+                    current_chat = data['new_chat_name'];
+                    notifyUser("You are now in chat: " + data['new_chat_name']);
+                    update();
+                }else{
+                    notifyUser("Incorrect Credentials.");
+                }
+            }
+        });
+
+        // checks if this client is getting kicked
+        socketio.on("kick",function(data) {
+            if(data['target'] === user){
+                current_chat = null;
+                document.getElementById("current_chat_name").innerHTML = "Current Chat: General";
+                console.log("You joined General");
+                notifyUser("You were kicked from the chat.");
+            }
+            update();
+        });
+
+        // checks if this client is getting banned
+        socketio.on("ban",function(data) {
+            if(data['target'] === user){
+                bans.push(current_chat);
+                current_chat = null;
+                document.getElementById("current_chat_name").innerHTML = "Current Chat: General";
+                console.log("You joined General");
+                notifyUser("You were banned from the chat.");
+            }
+            update();
+        });
+
+        // function for when server tells clients to update, sets gui
+        socketio.on("update",function(data) {
+            var upd_users = JSON.parse(data['users']);
+            var upd_public_chats = JSON.parse(data['public_chats']);
+            var upd_private_chats = JSON.parse(data['private_chats']);
+            var upd_user_chat_map = JSON.parse(data['user_chat_map']);
+            console.log(upd_users);
+            console.log(upd_public_chats);
+            console.log(upd_private_chats);
+            console.log(upd_user_chat_map);
+
+            document.getElementById("public_room_list").innerHTML = "";
+            for(var i = 0; i < upd_public_chats.length; i++){
+                var p = document.createElement("input");
+                p.setAttribute("type","button");
+                p.setAttribute("class","btn btn-light");
+                p.setAttribute("value",upd_public_chats[i]);
+                (function(p){
+                    p.addEventListener("click", function(event){
+                    joinPublic(p.value);
+                }, false);
+                })(p);
+                document.getElementById("public_room_list").appendChild(p);
+            }
+
+            document.getElementById("private_room_list").innerHTML = "";
+            for(var i = 0; i < upd_private_chats.length; i++){
+                var p = document.createElement("input");
+                p.setAttribute("type","button");
+                p.setAttribute("class","btn btn-light");
+                p.setAttribute("value",upd_private_chats[i]);
+                (function(p){
+                    p.addEventListener("click", function(event){
+                    joinPrivate(p.value, prompt("Enter Password: "));
+                }, false);
+                })(p);
+                document.getElementById("private_room_list").appendChild(p);
+            }
+
+            document.getElementById("room_user_list").innerHTML = "";
+            console.log(upd_user_chat_map);
+            for(var key in upd_user_chat_map){
+                if(upd_user_chat_map[key] === current_chat){
+                    var p = document.createElement("p");
+                    p.innerHTML = key;
+                    document.getElementById("room_user_list").appendChild(p);
+                }
+            }
+        });
+
+        //adds message when received from server
+        socketio.on("receive_message",function(data) {
+            if(data['chat'] === current_chat){
+                document.getElementById("room_log").innerHTML += "<p>" + data['user'] + ": " + data['msg'] + "</p>";
+                document.getElementById("room_log").scrollTop = document.getElementById("room_log").scrollHeight;
+            }
+        });
+
+        //adds message of image when received from server
+        socketio.on("receive_image",function(data) {
+            if(data['chat'] === current_chat){
+                document.getElementById("room_log").innerHTML += "<p>" + data['user'] + ": <img src=\""+ data['msg'] +"\"></p>";
+                document.getElementById("room_log").scrollTop = document.getElementById("room_log").scrollHeight;
+            }
+        });
+
+        //adds message of link when received from server 
+        socketio.on("receive_link",function(data) {
+            if(data['chat'] === current_chat){
+                var url_given = data['msg'];
+                if(url_given.length > 30){
+                    url_given = url_given.substring(0, 30) + "...";
+                }
+                document.getElementById("room_log").innerHTML += "<p>" + data['user'] + ": <a href=\""+ data['msg'] +"\">" + url_given + "</a></p>";
+                document.getElementById("room_log").innerHTML += "<p>" + data['user'] + ": <iframe src=\""+ data['msg'] +"\" height=\"200\" width=\"200\"></iframe></p>";
+                document.getElementById("room_log").scrollTop = document.getElementById("room_log").scrollHeight;
+            }
+        });
+
+         //adds private message when received from server
+        socketio.on("receive_private_message",function(data) {
+            if(data['chat'] === current_chat && (data['target'] === user || data['user'] === user)){
+                document.getElementById("room_log").innerHTML += "<p style=\"background-color:silver;\">" + data['user'] + " → " + data['target'] + ": " + data['msg'] + "</p>";
+                document.getElementById("room_log").scrollTop = document.getElementById("room_log").scrollHeight;
+            }
+        });
+
+        //notifies user of events
+        function notifyUser(notification){
+            document.getElementById("room_log").innerHTML += "<p style=\"color: red;\">" + notification + "</p>";
+            document.getElementById("room_log").scrollTop = document.getElementById("room_log").scrollHeight;
+        }
+
+        //try to create a new user - send to server
+        function tryNewUser(){
+            if(document.getElementById("new_user").value.length > 0){
+                var msg = document.getElementById("new_user").value;
+                socketio.emit("add_user", {id:id, new_user:msg});
+            }
+        }
+
+        //creating rooms
+        function createPublic(){
+            var msg = document.getElementById("new_chat_name").value;
+            console.log(msg);
+            socketio.emit("create_public", {id:id, user_name:user, new_chat_name:msg});
+        }
+        function createPrivate(){
+            var pass = prompt("Enter a password for the room:");
+            var msg = document.getElementById("new_chat_name").value;
+            socketio.emit("create_private", {id:id, user_name:user, new_chat_name:msg, new_chat_pass:pass});
+        }
+
+        //join rooms
+        function joinPublic(target){
+            if(!bans.includes(target)){
+                socketio.emit("join_public", {id:id, user_name:user, current_chat:current_chat, new_chat_name:target});
+            }else{
+                console.log("You were banned from this chat.");
+                notifyUser("Sorry, you were banned from that chat.");
+            }
+        }
+        function joinPrivate(target, password){
+            if(!bans.includes(target)){
+                socketio.emit("join_private", {id:id, user_name:user, current_chat:current_chat, new_chat_name:target, new_chat_pass:password});
+            }else{
+                console.log("You were banned from this chat.");
+                notifyUser("Sorry, you were banned from that chat.");
+            }
+        }
+
+        //update
+        function update(){
+            socketio.emit("update_request", {id:id, current_chat:current_chat});
+        }
+
+        //send messages
+        function sendMessage(){
+            if(document.getElementById("message").value.length > 0){
+                socketio.emit("send_message", {user:user, chat:current_chat, msg:document.getElementById("message").value});
+            }
+            document.getElementById("message").value = "";
+        }
+        function sendImage(){
+            if(document.getElementById("message").value.length > 0){
+                socketio.emit("send_image", {user:user, chat:current_chat, msg:document.getElementById("message").value});
+            }
+            document.getElementById("message").value = "";
+        }
+        function sendLink(){
+            if(document.getElementById("message").value.length > 0){
+                socketio.emit("send_link", {user:user, chat:current_chat, msg:document.getElementById("message").value});
+            }
+            document.getElementById("message").value = "";
+        }
+
+        //create id on start
+        socketio.emit("create_id");
+
+        </script>
+    </head>
+
+    <body>
+        <!-- simple navbar -->
+        <nav class="navbar navbar-light bg-light">
+            <span class="navbar-brand mb-0 h1">Mod6 Chat</span>
+            <p id="client_id"></p>
+        </nav>
+
+        <hr />
+
+        <!-- joining user at first -->
+        <div id="userjoin">
+            <div class="container">
+                <div class="row">
+                    <div class="col"></div>
+                <div class="col">
+                    <input type="text" id="new_user"/>
+                    <button onclick="tryNewUser()">Set Username</button>
+                    <p id="userjoinmsg"></p>
+                </div>
+                <div class="col"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- overall page -->
+        <div id="page" style="display: none;">
+            <div class="container">
+                <div class="row">
+                    <!-- left column for rooms and users -->
+                    <div class="col">
+                        <input type="text" id="new_chat_name"/>
+                        <button onclick="createPublic()">Create Public</button>
+                        <button onclick="createPrivate()">Create Private</button>
+            
+                        <hr />
+            
+                        <p>Public Rooms:</p>
+                        <div id="public_room_list"></div>
+            
+                        <hr />
+            
+                        <p>Private Rooms:</p>
+                        <div id="private_room_list"></div>
+            
+                        <hr />
+            
+                        <p>Users in Your Room:</p>
+                        <div id="room_user_list"></div>
+                    </div>
+                    <!-- chat itself -->
+                    <div class="col">
+                        <p id="current_chat_name">Current Chat: General</p>
+
+                        <hr />
+
+                        <div id="room_log" style="overflow:auto; height: 300px"></div>
+
+                        <hr />
+
+                        <input type="text" id="message"/>
+                        <button onclick="sendMessage()">Send</button>
+                        <button onclick="sendImage()">Send Image</button>
+                        <button onclick="sendLink()">Send Link</button>
+                        <!-- iframe -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
+        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
+    </body>
+</html>

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head><title>JavaScript Calculator</title></head>
+	<body>
+		<script>
+			//Function to calculate every update
+			function calculate(){
+				//Get the two numbers to compute
+				const num1 = parseFloat(document.getElementById("num1").value);
+				const num2 = parseFloat(document.getElementById("num2").value);
+	
+				//Find the current operation
+				var operation_radio_pointers = document.getElementsByName("operation");
+    				var which_operation = null;
+    				for(var i=0; i<operation_radio_pointers.length; i++){
+     				   	if(operation_radio_pointers[i].checked){
+      				      		which_operation = operation_radio_pointers[i].value;
+        			    		break;
+        				}
+    				}
+
+				//Prevent Crash cases, return output
+				if(num1 == null || num2 == null || isNaN(num1) || isNaN(num2)){
+					document.getElementById("equation").textContent = "Please Enter Both Numbers.";
+				}else if(which_operation == null){
+					document.getElementById("equation").textContent = "Select an Operation";
+				}else{
+					if(which_operation == "addition"){ document.getElementById("equation").textContent = num1 + " + " + num2 + " = " + (num1+num2); }
+					if(which_operation == "subtraction"){ document.getElementById("equation").textContent = num1 + " - " + num2 + " = " + (num1-num2); }
+					if(which_operation == "multiplication"){ document.getElementById("equation").textContent = num1 + " * " + num2 + " = " + (num1*num2); }
+					if(which_operation == "division"){ document.getElementById("equation").textContent = num1 + " / " + num2 + " = " + (num1/num2); }	
+					if(which_operation == "division" && num2 == 0){ document.getElementById("equation").textContent = "Sorry, you can't divide by 0."; }	
+				}
+			}
+		</script>
+
+		<!-- Form for inputs -->
+		<form>
+			<input type="number" name="number1" id="num1">
+			<input type="number" name="number2" id="num2"><br>
+			<input type="radio" name="operation" value="addition" id="additioninput">
+			<label for="additioninput">+</label><br>
+			<input type="radio" name="operation" value="subtraction" id="subtractioninput">
+			<label for="subtractioninput">-</label><br>
+			<input type="radio" name="operation" value="multiplication" id="multiplicationinput">
+			<label for="multiplicationinput">*</label><br>
+			<input type="radio" name="operation" value="division" id="divisioninput">
+			<label for="divisioninput">/</label><br>
+
+			<script>
+				//Assign event listeners
+				document.getElementById("num1").addEventListener("change",calculate,false);
+				document.getElementById("num2").addEventListener("change",calculate,false);
+				document.getElementById("additioninput").addEventListener("change",calculate,false);
+				document.getElementById("subtractioninput").addEventListener("change",calculate,false);
+				document.getElementById("multiplicationinput").addEventListener("change",calculate,false);
+				document.getElementById("divisioninput").addEventListener("change",calculate,false);
+			</script>
+		</form>
+
+		<p id="equation"></p>
+	</body>
+</html>
